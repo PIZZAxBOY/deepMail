@@ -6,31 +6,29 @@ const readline = require('readline');
 const CONFIG_PATH = './config.json';
 let appConfig;
 
-// 创建 readline 接口（要在用到 rl.close() 之前就声明好）
+// 创建 readline 接口
 const rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout
 });
 
-try {
-  const configContent = fs.readFileSync(CONFIG_PATH, 'utf8');
-  // 用全局 JSON.parse，而不是 config.JSON.parse
-  appConfig = JSON.parse(configContent);
-  console.log('配置已加载');
-} catch (error) {
-  console.error('无法加载配置：', error.message);
-  rl.close();
-  process.exit(1);
-}
-
-const API_URL = appConfig.deepSeekAPI.API_URL;
-const API_KEY = appConfig.deepSeekAPI.API_KEY;
-
-// 把 rl.question 包装成 Promise 方便用 async/await
+// 把 rl.question 包装成 Promise
 function ask(question) {
   return new Promise(resolve => {
     rl.question(question, answer => resolve(answer));
   });
+}
+
+// 新增：多行输入，END 单独一行时结束
+async function askMultiline(prompt, endMarker = 'END') {
+  console.log(`${prompt}（输入 ${endMarker} 单独一行以结束）`);
+  const lines = [];
+  while (true) {
+    const line = await ask('');
+    if (line === endMarker) break;
+    lines.push(line);
+  }
+  return lines.join('\n');
 }
 
 // 读取固定 prompt
@@ -42,6 +40,20 @@ function readFixedPrompt() {
     process.exit(1);
   }
 }
+
+// 加载配置
+try {
+  const configContent = fs.readFileSync(CONFIG_PATH, 'utf8');
+  appConfig = JSON.parse(configContent);
+  console.log('配置已加载');
+} catch (error) {
+  console.error('无法加载配置：', error.message);
+  rl.close();
+  process.exit(1);
+}
+
+const API_URL = appConfig.deepSeekAPI.API_URL;
+const API_KEY = appConfig.deepSeekAPI.API_KEY;
 
 // 发送 API 请求
 async function sendRequest(messages) {
@@ -73,31 +85,20 @@ async function sendRequest(messages) {
 // 主函数
 async function main() {
   const fixedPrompt = readFixedPrompt();
-  let accumulatedPrompt = '';
 
-  // 循环收集用户的 prompt
-  while (true) {
-    const userPrompt = await ask('请输入您的 prompt：');
-    if (!accumulatedPrompt) {
-      accumulatedPrompt = `Email:${userPrompt}`;
-    } else {
-      accumulatedPrompt += ` Direction:${userPrompt}`;
-    }
+  // 用多行输入替代单行 ask
+  const emailBody = await askMultiline('请输入邮件内容', 'e');
+  const direction = await askMultiline('请输入 Direction（e 结束）', 'e');
 
-    const more = await ask('是否要添加额外的 prompt？(y/n)：');
-    if (more.trim().toLowerCase() !== 'y') {
-      break;
-    }
-  }
+  const accumulatedPrompt = `Email:${emailBody}\nDirection:${direction}`;
 
-  // 在用户不再添加时，一次性发送请求
   const messages = [
     { role: 'system', content: fixedPrompt },
     { role: 'user', content: accumulatedPrompt }
   ];
-  await sendRequest(messages);
 
-  console.log('退出程序。');
+  await sendRequest(messages);
+  console.log('END');
   rl.close();
 }
 
