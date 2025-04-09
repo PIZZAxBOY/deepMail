@@ -1,8 +1,9 @@
+// app.js
 const fs = require('fs');
-const fetch = require('node-fetch').default;
+const { OpenAI } = require('openai');
 const readline = require('readline');
 
-// DeepSeek API 配置
+// 配置文件路径
 const CONFIG_PATH = './config.json';
 let appConfig;
 
@@ -19,7 +20,7 @@ function ask(question) {
   });
 }
 
-// 新增：多行输入，END 单独一行时结束
+// 多行输入，END 单独一行时结束
 async function askMultiline(prompt, endMarker = 'END') {
   console.log(`${prompt}（输入 ${endMarker} 单独一行以结束）`);
   const lines = [];
@@ -35,62 +36,54 @@ async function askMultiline(prompt, endMarker = 'END') {
 function readFixedPrompt() {
   try {
     return fs.readFileSync('prompt.txt', 'utf8').trim();
-  } catch (error) {
-    console.error('错误：无法读取 prompt.txt 文件，请确保文件存在。', error.message);
+  } catch (err) {
+    console.error('错误：无法读取 prompt.txt，请确保文件存在。', err.message);
     process.exit(1);
   }
 }
 
 // 加载配置
 try {
-  const configContent = fs.readFileSync(CONFIG_PATH, 'utf8');
-  appConfig = JSON.parse(configContent);
+  const raw = fs.readFileSync(CONFIG_PATH, 'utf8');
+  appConfig = JSON.parse(raw);
   console.log('配置已加载');
-} catch (error) {
-  console.error('无法加载配置：', error.message);
-  rl.close();
+} catch (err) {
+  console.error('无法加载配置：', err.message);
   process.exit(1);
 }
 
-const API_URL = appConfig.deepSeekAPI.API_URL;
-const API_KEY = appConfig.deepSeekAPI.API_KEY;
+// 从配置中取值
+const { API_URL, API_KEY } = appConfig.deepSeekAPI;
 
-// 发送 API 请求
+// 初始化 OpenAI 客户端，指定 baseURL 为 DeepSeek
+const openai = new OpenAI({
+  apiKey: API_KEY,
+  baseURL: API_URL,  // 去掉路径，只保留主机部分
+});
+
+// 发送请求
 async function sendRequest(messages) {
   try {
-    const response = await fetch(API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${API_KEY}`
-      },
-      body: JSON.stringify({
-        model: 'deepseek-chat',
-        messages,
-        max_tokens: 150
-      })
+    const resp = await openai.chat.completions.create({
+      model: 'deepseek-chat',
+      messages,
+      max_tokens: 150
     });
-
-    if (!response.ok) {
-      throw new Error(`API 请求失败：${response.statusText}`);
-    }
-
-    const data = await response.json();
-    console.log('API 响应：', data.choices[0].message.content.trim());
-  } catch (error) {
-    console.error('错误：发送请求失败：', error.message);
+    const reply = resp.choices[0].message.content.trim();
+    console.log('API 响应：\n', reply);
+  } catch (err) {
+    console.error('错误：请求失败：', err.message);
   }
 }
 
-// 主函数
+// 主流程
 async function main() {
   const fixedPrompt = readFixedPrompt();
 
-  // 用多行输入替代单行 ask
-  const emailBody = await askMultiline('请输入邮件内容', 'e');
-  const direction = await askMultiline('请输入 Direction（e 结束）', 'e');
+  const emailBody = await askMultiline('请输入邮件内容', 'END');
+  const direction = await askMultiline('请输入 Direction', 'END');
 
-  const accumulatedPrompt = `Email:${emailBody}\nDirection:${direction}`;
+  const accumulatedPrompt = `Email:\n${emailBody}\n\nDirection:\n${direction}`;
 
   const messages = [
     { role: 'system', content: fixedPrompt },
@@ -98,6 +91,7 @@ async function main() {
   ];
 
   await sendRequest(messages);
+
   console.log('END');
   rl.close();
 }
