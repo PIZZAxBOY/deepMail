@@ -21,7 +21,7 @@ function ask(question) {
 }
 
 // 多行输入，END 单独一行时结束
-async function askMultiline(prompt, endMarker = 'END') {
+async function askMultiline(prompt, endMarker = 'e') {
   console.log(`${prompt}（输入 ${endMarker} 单独一行以结束）`);
   const lines = [];
   while (true) {
@@ -80,8 +80,8 @@ async function sendRequest(messages) {
 async function main() {
   const fixedPrompt = readFixedPrompt();
 
-  const emailBody = await askMultiline('请输入邮件内容', 'END');
-  const direction = await askMultiline('请输入 Direction', 'END');
+  const emailBody = await askMultiline('请输入邮件内容', 'e');
+  const direction = await askMultiline('请输入 Direction', 'e');
 
   const accumulatedPrompt = `Email:\n${emailBody}\n\nDirection:\n${direction}`;
 
