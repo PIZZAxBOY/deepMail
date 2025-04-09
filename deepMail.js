@@ -67,7 +67,7 @@ async function sendRequest(messages) {
     const resp = await openai.chat.completions.create({
       model: 'deepseek-chat',
       messages,
-      max_tokens: 150
+      max_tokens: 300
     });
     const reply = resp.choices[0].message.content.trim();
     console.log('API 响应：\n', reply);
