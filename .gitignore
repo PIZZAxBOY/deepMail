@@ -1,8 +1,8 @@
 # 配置文件（包含敏感信息）
 config.json
 
-# Promt
-prompt.txt
+# Prompt
+*.txt
 
 # Node.js 依赖目录
 node_modules/
