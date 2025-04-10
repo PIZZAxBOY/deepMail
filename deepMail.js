@@ -68,7 +68,7 @@ async function sendRequest(messages) {
       model: 'deepseek-chat',
       messages,
       max_tokens: 300,
-      temperature: 2.0,
+      temperature: 1.7,
     });
     const reply = resp.choices[0].message.content.trim();
     console.log('API 响应：\n', reply);
