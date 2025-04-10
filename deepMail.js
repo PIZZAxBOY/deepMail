@@ -1,4 +1,3 @@
-// app.js
 const fs = require('fs');
 const { OpenAI } = require('openai');
 const readline = require('readline');
